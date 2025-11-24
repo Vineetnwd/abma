@@ -27,9 +27,7 @@ export default function DashboardScreen({ navigation, route }) {
     absent: 0,
     collection: "0.00",
     full_name: "",
-    user_type: "",
-    recent_receipts: [],
-    recent_students: []
+    user_type: ""
   });
   const [userId, setUserId] = useState('XXX');
 
@@ -196,50 +194,7 @@ export default function DashboardScreen({ navigation, route }) {
 
   // Format currency with ₹ symbol
   const formatCurrency = (amount) => {
-    return `₹${parseFloat(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
-  // Format date to relative or absolute format
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    // Reset hours for date comparison
-    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
-
-    if (dateOnly.getTime() === todayOnly.getTime()) {
-      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    } else if (dateOnly.getTime() === yesterdayOnly.getTime()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
-  };
-
-  // Format created_at timestamp
-  const formatCreatedDate = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 60) {
-      return `${diffMins}m ago`;
-    } else if (diffHours < 24) {
-      return `${diffHours}h ago`;
-    } else if (diffDays === 1) {
-      return 'Yesterday';
-    } else if (diffDays < 7) {
-      return `${diffDays}d ago`;
-    } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
+    return `₹${amount}`;
   };
 
   if (loading) {
@@ -251,7 +206,7 @@ export default function DashboardScreen({ navigation, route }) {
             style={styles.loadingContainer}
           >
             <ActivityIndicator size="large" color="#FFD740" />
-            <Text style={styles.loadingText}>LOADING ADMIN CENTER...</Text>
+            <Text style={styles.loadingText}>LOADING COMMAND CENTER...</Text>
             <View style={styles.loadingBorder}>
               <View style={styles.loadingBorderInner} />
             </View>
@@ -396,6 +351,12 @@ export default function DashboardScreen({ navigation, route }) {
             </LinearGradient>
           </View>
 
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionDivider} />
+            <Text style={styles.sectionTitle}>TACTICAL OPERATIONS</Text>
+            <View style={styles.sectionDivider} />
+          </View>
+
           <View style={styles.menuGrid}>
             {menuItems.map((item) => (
               <TouchableOpacity
@@ -428,129 +389,92 @@ export default function DashboardScreen({ navigation, route }) {
             ))}
           </View>
 
-          {/* Recent Receipts Section */}
-          {dashboardData.recent_receipts && dashboardData.recent_receipts.length > 0 && (
-            <>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionDivider} />
-                <Text style={styles.sectionTitle}>RECENT PAYMENTS</Text>
-                <View style={styles.sectionDivider} />
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionDivider} />
+            <Text style={styles.sectionTitle}>RECENT OPERATIONS</Text>
+            <View style={styles.sectionDivider} />
+          </View>
+
+          <LinearGradient
+            colors={["#ffffff", "#f5fff5"]}
+            style={styles.recentActivityContainer}
+          >
+            <View style={styles.activityBorder} />
+            
+            <View style={styles.recentActivityHeader}>
+              <View style={styles.activityHeaderLeft}>
+                <FontAwesome5 name="history" size={16} color="#7CB342" />
+                <Text style={styles.recentActivityTitle}>Mission Log</Text>
+              </View>
+              <TouchableOpacity style={styles.viewAllButton}>
+                <Text style={styles.viewAllText}>VIEW ALL</Text>
+                <FontAwesome5 name="arrow-right" size={10} color="#7CB342" style={{ marginLeft: 6 }} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.activityList}>
+              <View style={styles.activityItem}>
+                <LinearGradient
+                  colors={["#FFB300", "#FFC107"]}
+                  style={styles.activityIconContainer}
+                >
+                  <FontAwesome5 name="rupee-sign" size={14} color="#fff" />
+                </LinearGradient>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle}>Payment Secured</Text>
+                  <Text style={styles.activityDescription}>
+                    Rahul Kumar - Class 8A - ₹3,500
+                  </Text>
+                </View>
+                <View style={styles.activityTimeContainer}>
+                  <FontAwesome5 name="clock" size={10} color="#7CB342" />
+                  <Text style={styles.activityTime}>10:15</Text>
+                </View>
               </View>
 
-              <LinearGradient
-                colors={["#ffffff", "#fffbf0"]}
-                style={styles.recentActivityContainer}
-              >
-                <View style={[styles.activityBorder, { backgroundColor: '#FFB300' }]} />
-                
-                <View style={styles.recentActivityHeader}>
-                  <View style={styles.activityHeaderLeft}>
-                    <FontAwesome5 name="receipt" size={16} color="#FFB300" />
-                    <Text style={[styles.recentActivityTitle, { color: '#2d3436' }]}>Payment Log</Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={[styles.viewAllButton, { backgroundColor: '#fff8e1' }]}
-                    onPress={() => router.push('/CollectionReport')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.viewAllText, { color: '#FFB300' }]}>VIEW ALL</Text>
-                    <FontAwesome5 name="arrow-right" size={10} color="#FFB300" style={{ marginLeft: 6 }} />
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.activityDivider} />
 
-                <View style={styles.activityList}>
-                  {dashboardData.recent_receipts.slice(0, 4).map((receipt, index) => (
-                    <View key={receipt.id}>
-                      {index > 0 && <View style={styles.activityDivider} />}
-                      <View style={styles.activityItem}>
-                        <LinearGradient
-                          colors={["#FFB300", "#FFC107"]}
-                          style={styles.activityIconContainer}
-                        >
-                          <FontAwesome5 name="rupee-sign" size={14} color="#fff" />
-                        </LinearGradient>
-                        <View style={styles.activityContent}>
-                          <Text style={styles.activityTitle}>Payment Received</Text>
-                          <Text style={styles.activityDescription}>
-                            Receipt #{receipt.id} - Student ID: {receipt.student_id}
-                          </Text>
-                          <Text style={[styles.activityDescription, { color: '#FFB300', fontWeight: '700', marginTop: 2 }]}>
-                            {formatCurrency(receipt.paid_amount)}
-                          </Text>
-                        </View>
-                        <View style={[styles.activityTimeContainer, { backgroundColor: '#fff8e1' }]}>
-                          <FontAwesome5 name="clock" size={10} color="#FFB300" />
-                          <Text style={[styles.activityTime, { color: '#FFB300' }]}>
-                            {formatDate(receipt.paid_date)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
+              <View style={styles.activityItem}>
+                <LinearGradient
+                  colors={["#29B6F6", "#4FC3F7"]}
+                  style={styles.activityIconContainer}
+                >
+                  <FontAwesome5 name="clipboard-check" size={14} color="#fff" />
+                </LinearGradient>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle}>Roll Call Complete</Text>
+                  <Text style={styles.activityDescription}>
+                    Class 10B - 32 Present, 3 Absent
+                  </Text>
                 </View>
-              </LinearGradient>
-            </>
-          )}
-
-          {/* Recent Students Section */}
-          {dashboardData.recent_students && dashboardData.recent_students.length > 0 && (
-            <>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionDivider} />
-                <Text style={styles.sectionTitle}>NEW RECRUITS</Text>
-                <View style={styles.sectionDivider} />
+                <View style={styles.activityTimeContainer}>
+                  <FontAwesome5 name="clock" size={10} color="#7CB342" />
+                  <Text style={styles.activityTime}>09:30</Text>
+                </View>
               </View>
 
-              <LinearGradient
-                colors={["#ffffff", "#f0f8ff"]}
-                style={styles.recentActivityContainer}
-              >
-                <View style={[styles.activityBorder, { backgroundColor: '#29B6F6' }]} />
-                
-                <View style={styles.recentActivityHeader}>
-                  <View style={styles.activityHeaderLeft}>
-                    <FontAwesome5 name="user-plus" size={16} color="#29B6F6" />
-                    <Text style={[styles.recentActivityTitle, { color: '#2d3436' }]}>Recent Admissions</Text>
-                  </View>
-                  {/* <TouchableOpacity style={[styles.viewAllButton, { backgroundColor: '#e3f2fd' }]}>
-                    <Text style={[styles.viewAllText, { color: '#29B6F6' }]}>VIEW ALL</Text>
-                    <FontAwesome5 name="arrow-right" size={10} color="#29B6F6" style={{ marginLeft: 6 }} />
-                  </TouchableOpacity> */}
-                </View>
+              <View style={styles.activityDivider} />
 
-                <View style={styles.activityList}>
-                  {dashboardData.recent_students.slice(0, 4).map((student, index) => (
-                    <View key={student.id}>
-                      {index > 0 && <View style={styles.activityDivider} />}
-                      <View style={styles.activityItem}>
-                        <LinearGradient
-                          colors={["#29B6F6", "#4FC3F7"]}
-                          style={styles.activityIconContainer}
-                        >
-                          <FontAwesome5 name="user-graduate" size={14} color="#fff" />
-                        </LinearGradient>
-                        <View style={styles.activityContent}>
-                          <Text style={styles.activityTitle}>New Student Added</Text>
-                          <Text style={styles.activityDescription}>
-                            {student.student_name}
-                          </Text>
-                          <Text style={[styles.activityDescription, { fontSize: 9, marginTop: 2 }]}>
-                            ID: {student.id}
-                          </Text>
-                        </View>
-                        <View style={[styles.activityTimeContainer, { backgroundColor: '#e3f2fd' }]}>
-                          <FontAwesome5 name="clock" size={10} color="#29B6F6" />
-                          <Text style={[styles.activityTime, { color: '#29B6F6' }]}>
-                            {formatCreatedDate(student.created_at)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
+              <View style={styles.activityItem}>
+                <LinearGradient
+                  colors={["#26A69A", "#4DB6AC"]}
+                  style={styles.activityIconContainer}
+                >
+                  <FontAwesome5 name="book" size={14} color="#fff" />
+                </LinearGradient>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle}>Mission Assigned</Text>
+                  <Text style={styles.activityDescription}>
+                    Mathematics - Class 9A
+                  </Text>
                 </View>
-              </LinearGradient>
-            </>
-          )}
+                <View style={styles.activityTimeContainer}>
+                  <FontAwesome5 name="clock" size={10} color="#7CB342" />
+                  <Text style={styles.activityTime}>Yesterday</Text>
+                </View>
+              </View>
+            </View>
+          </LinearGradient>
 
           {/* Military footer badge */}
           <View style={styles.footerBadge}>
@@ -802,6 +726,12 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#2d3436",
     letterSpacing: 2,
+  },
+  dashboardSubtitle: {
+    fontSize: 11,
+    color: "#7CB342",
+    marginTop: 2,
+    letterSpacing: 1,
   },
   dateContainer: {
     flexDirection: 'row',

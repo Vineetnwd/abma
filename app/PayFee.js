@@ -22,22 +22,22 @@ const { width } = Dimensions.get("window");
 
 // Army Combat Color Palette
 const COLORS = {
-  primary: '#4A5D23',        // Olive green
-  secondary: '#6B7F3A',      // Lighter olive
-  accent: '#8B7355',         // Tan/Brown
-  dark: '#2C3E1F',          // Dark green
+  primary: '#4A5D23',
+  secondary: '#6B7F3A',
+  accent: '#8B7355',
+  dark: '#2C3E1F',
   white: '#FFFFFF',
-  gray: '#5C5C5C',          // Medium gray
-  lightGray: '#D4CEBA',     // Khaki
-  error: '#8B4513',          // Saddle brown
-  success: '#5D7C2F',        // Military green
-  warning: '#C87533',        // Burnt orange
-  background: '#F5F3EE',     // Off-white/Beige
-  cardBg: '#FAFAF7',        // Light beige
-  textPrimary: '#2C2C2C',    // Dark gray
-  textSecondary: '#5C5C5C',  // Medium gray
-  border: '#D4CEBA',         // Khaki border
-  borderLight: '#E5E1D3',    // Light khaki
+  gray: '#5C5C5C',
+  lightGray: '#D4CEBA',
+  error: '#8B4513',
+  success: '#5D7C2F',
+  warning: '#C87533',
+  background: '#F5F3EE',
+  cardBg: '#FAFAF7',
+  textPrimary: '#2C2C2C',
+  textSecondary: '#5C5C5C',
+  border: '#D4CEBA',
+  borderLight: '#E5E1D3',
 };
 
 export default function StudentFeeScreen() {
@@ -53,6 +53,7 @@ export default function StudentFeeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [feeData, setFeeData] = useState(null);
+  const [previousDues, setPreviousDues] = useState(0);
   const [studentInfo, setStudentInfo] = useState({
     id: student_id || "",
     name: student_name || "Student Name",
@@ -81,29 +82,91 @@ export default function StudentFeeScreen() {
         "https://abma.org.in/binex/api.php?task=student_fee",
         {
           student_id: student_id,
+        },
+        {
+          timeout: 10000, // 10 second timeout
+          headers: {
+            'Content-Type': 'application/json',
+          }
         }
       );
 
-      if (response.data) {
-        const processedData = {};
-        Object.entries(response.data).forEach(([month, fees]) => {
-          processedData[month] = {
-            ...fees,
-            total:
-              typeof fees.total === "number"
-                ? fees.total
-                : parseFloat(fees.total) || 0,
-            status: fees.status || "UNPAID",
-          };
+      // Check if response has data
+      if (!response.data) {
+        throw new Error("No data received from server");
+      }
+
+      // Extract previous_dues and months data
+      const { previous_dues, ...monthsData } = response.data;
+
+      // Validate that we have month data
+      if (Object.keys(monthsData).length === 0) {
+        throw new Error("No fee data available for this student");
+      }
+
+      const processedData = {};
+
+      // Process each month
+      Object.entries(monthsData).forEach(([month, fees]) => {
+        // Calculate total from all fee components (excluding status)
+        let total = 0;
+        Object.entries(fees).forEach(([key, value]) => {
+          if (key !== 'status') {
+            const numValue = typeof value === 'number' ? value : parseFloat(value);
+            if (!isNaN(numValue)) {
+              total += numValue;
+            }
+          }
         });
 
-        setFeeData(processedData);
-      } else {
-        throw new Error("Invalid response from server");
-      }
+        processedData[month] = {
+          ...fees,
+          total: total,
+          status: fees.status || "UNPAID",
+        };
+      });
+
+      // Set previous dues (default to 0 if not provided)
+      setPreviousDues(
+        typeof previous_dues === 'number' 
+          ? previous_dues 
+          : parseFloat(previous_dues) || 0
+      );
+
+      setFeeData(processedData);
     } catch (err) {
       console.error("Error fetching fee data:", err);
-      setError(err.message || "Failed to load fee data. Please try again.");
+
+      // Comprehensive error handling
+      let errorMessage = "Failed to load fee data. Please try again.";
+
+      if (err.code === 'ECONNABORTED') {
+        errorMessage = "Request timeout. Please check your internet connection.";
+      } else if (err.response) {
+        // Server responded with error status
+        const status = err.response.status;
+        if (status === 400) {
+          errorMessage = "Invalid student ID provided.";
+        } else if (status === 404) {
+          errorMessage = "Student fee data not found.";
+        } else if (status === 500) {
+          errorMessage = "Server error. Please try again later.";
+        } else if (status === 503) {
+          errorMessage = "Service temporarily unavailable.";
+        } else if (err.response.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response.data?.error) {
+          errorMessage = err.response.data.error;
+        }
+      } else if (err.request) {
+        // Request made but no response received
+        errorMessage = "Network error. Please check your internet connection.";
+      } else if (err.message) {
+        // Error in request setup
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -113,22 +176,20 @@ export default function StudentFeeScreen() {
   const calculateTotals = () => {
     if (!feeData) return { total: 0, paid: 0, pending: 0 };
 
-    const total = Object.values(feeData).reduce((sum, month) => {
-      const monthTotal =
-        typeof month.total === "number"
-          ? month.total
-          : parseFloat(month.total) || 0;
-      return sum + monthTotal;
-    }, 0);
+    let total = previousDues; // Start with previous dues
+    let paid = 0;
 
-    const paid = Object.values(feeData).reduce((sum, month) => {
-      if (month.status !== "PAID") return sum;
-      const monthTotal =
-        typeof month.total === "number"
-          ? month.total
-          : parseFloat(month.total) || 0;
-      return sum + monthTotal;
-    }, 0);
+    Object.values(feeData).forEach((month) => {
+      const monthTotal = typeof month.total === "number"
+        ? month.total
+        : parseFloat(month.total) || 0;
+
+      total += monthTotal;
+
+      if (month.status === "PAID") {
+        paid += monthTotal;
+      }
+    });
 
     return {
       total: isNaN(total) ? 0 : total,
@@ -240,7 +301,7 @@ export default function StudentFeeScreen() {
                 </View>
               )}
 
-              <Text style={styles.totalAmount}>₹{monthData.total}</Text>
+              <Text style={styles.totalAmount}>₹{monthData.total.toLocaleString()}</Text>
             </View>
           </View>
 
@@ -261,7 +322,9 @@ export default function StudentFeeScreen() {
                     <View style={styles.bulletPoint} />
                     <Text style={styles.feeLabel}>{formattedLabel}</Text>
                   </View>
-                  <Text style={styles.feeValue}>₹{value}</Text>
+                  <Text style={styles.feeValue}>
+                    ₹{typeof value === 'number' ? value.toLocaleString() : value}
+                  </Text>
                 </View>
               );
             })}
@@ -368,7 +431,7 @@ export default function StudentFeeScreen() {
           <View style={styles.errorIconContainer}>
             <FontAwesome5 name="exclamation-triangle" size={50} color={COLORS.error} />
           </View>
-          <Text style={styles.errorTitle}>ERROR LOADING DATA</Text>
+          <Text style={styles.errorTitle}>OPERATION FAILED</Text>
           <Text style={styles.errorMessage}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchFeeData}>
             <LinearGradient
@@ -376,13 +439,29 @@ export default function StudentFeeScreen() {
               style={styles.retryButtonGradient}
             >
               <View style={styles.buttonStripe} />
-              <Text style={styles.retryButtonText}>RETRY</Text>
+              <Text style={styles.retryButtonText}>RETRY MISSION</Text>
               <FontAwesome5 name="redo" size={14} color={COLORS.white} style={{ marginLeft: 8 }} />
             </LinearGradient>
           </TouchableOpacity>
         </View>
       ) : (
         <>
+          {/* Previous Dues Warning (if any) */}
+          {previousDues > 0 && (
+            <Animated.View
+              entering={FadeInDown.delay(250).springify()}
+              style={styles.previousDuesCard}
+            >
+              <View style={styles.previousDuesIcon}>
+                <FontAwesome5 name="exclamation" size={16} color={COLORS.warning} />
+              </View>
+              <View style={styles.previousDuesContent}>
+                <Text style={styles.previousDuesLabel}>PREVIOUS DUES</Text>
+                <Text style={styles.previousDuesAmount}>₹{previousDues.toLocaleString()}</Text>
+              </View>
+            </Animated.View>
+          )}
+
           {/* Fee Summary Cards */}
           <Animated.View
             entering={FadeInDown.delay(300).springify()}
@@ -633,6 +712,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 24,
     fontWeight: "500",
+    paddingHorizontal: 20,
   },
   retryButton: {
     borderRadius: 25,
@@ -749,6 +829,46 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: COLORS.white,
+  },
+  previousDuesCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.warning + '15',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.warning,
+    borderWidth: 1,
+    borderColor: COLORS.warning + '30',
+  },
+  previousDuesIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.warning + '25',
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: COLORS.warning,
+  },
+  previousDuesContent: {
+    flex: 1,
+  },
+  previousDuesLabel: {
+    fontSize: 11,
+    color: COLORS.warning,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  previousDuesAmount: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: COLORS.textPrimary,
+    letterSpacing: 0.5,
   },
   summaryCardsContainer: {
     flexDirection: "row",

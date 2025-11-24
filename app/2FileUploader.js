@@ -5,35 +5,45 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    Image,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
+const COLORS = {
+  primary: '#2C3E23',        // Dark Military Green
+  secondary: '#4A5D23',      // Olive Drab
+  accent: '#C19A6B',         // Desert Sand/Tan
+  white: '#FFFFFF',
+  gray: '#6B6B6B',          // Gunmetal Gray
+  lightGray: '#D4D2C8',     // Light Stone
+  error: '#8B4513',         // Saddle Brown
+  success: '#556B2F',       // Dark Olive Green
+  background: '#E8E4DC',    // Light Khaki Background
+  cardBg: '#F5F3EE',        // Card Background
+  darkAccent: '#3E4A2D',    // Dark Forest Green
+  combat: '#454B3D',        // Combat Gray-Green
+  border: '#9A8F7F',        // Border Color
+  warning: '#B8956A',       // Tan/Khaki
+};
+
 const FileUploader = ({
   onUploadSuccess,
   onUploadError,
-  buttonTitle = "Upload File",
-  apiUrl = "https://dpsmushkipur.com/bine/api.php?task=upload",
+  buttonTitle = "UPLOAD FILE",
+  apiUrl = "https://abma.org.in/binex/api.php?task=upload",
   maxSize = 5 * 1024 * 1024, // 5MB
   allowedTypes = ["jpg", "jpeg", "png", "gif", "pdf"],
-  theme = {
-    primary: '#2196F3',
-    success: '#4CAF50',
-    error: '#F44336',
-    warning: '#FF9800',
-    background: '#FFFFFF',
-    text: '#333333',
-  },
+  theme = COLORS,
   style = {},
 }) => {
   const [loading, setLoading] = useState(false);
@@ -41,7 +51,7 @@ const FileUploader = ({
   const [selectedFile, setSelectedFile] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState(null); // 'success', 'error', or null
+  const [uploadStatus, setUploadStatus] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   
   const abortControllerRef = useRef(null);
@@ -161,7 +171,6 @@ const FileUploader = ({
       
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
-       // aspect: [4, 3],
         quality: 0.8,
       });
       
@@ -192,7 +201,6 @@ const FileUploader = ({
     if (!selectedFile || !selectedFile.isImage) return selectedFile;
     
     try {
-      // Resize large images to save bandwidth
       const manipResult = await manipulateAsync(
         selectedFile.uri,
         [{ resize: { width: 1200 } }],
@@ -210,22 +218,18 @@ const FileUploader = ({
       };
     } catch (error) {
       console.error('Error processing image:', error);
-      // If processing fails, return the original file
       return selectedFile;
     }
   };
 
   const validateFile = (file) => {
-    // Check file size
     if (file.size > maxSize) {
       showErrorMessage(`File too large. Maximum size is ${formatFileSize(maxSize)}`);
       return false;
     }
 
-    // Get file extension
     const fileExtension = file.name.split('.').pop().toLowerCase();
     
-    // Check file type
     if (!allowedTypes.includes(fileExtension)) {
       showErrorMessage(`Invalid file type. Allowed: ${allowedTypes.join(', ')}`);
       return false;
@@ -242,15 +246,12 @@ const FileUploader = ({
       return;
     }
     
-    // Process image if needed (resize/compress)
     const processedFile = selectedFile.isImage ? await processImage() : selectedFile;
     
-    // Validate file
     if (!validateFile(processedFile)) {
       return;
     }
     
-    // All validations passed, proceed to upload
     uploadFile(processedFile);
   };
 
@@ -259,7 +260,6 @@ const FileUploader = ({
       setLoading(true);
       setProgress(0);
       
-      // Create form data
       const formData = new FormData();
       formData.append('file', {
         uri: Platform.OS === 'ios' ? file.uri.replace('file://', '') : file.uri,
@@ -267,14 +267,11 @@ const FileUploader = ({
         type: file.type,
       });
 
-      // Setup abort controller for cancellation
       abortControllerRef.current = new AbortController();
       const { signal } = abortControllerRef.current;
       
-      // Upload using XMLHttpRequest to track progress
       const xhr = new XMLHttpRequest();
       
-      // Track upload progress
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable) {
           const progressValue = event.loaded / event.total;
@@ -282,7 +279,6 @@ const FileUploader = ({
         }
       });
       
-      // Promise wrapper for XMLHttpRequest
       const uploadPromise = new Promise((resolve, reject) => {
         xhr.onreadystatechange = function() {
           if (xhr.readyState === 4) {
@@ -303,16 +299,13 @@ const FileUploader = ({
         xhr.ontimeout = () => reject(new Error('Upload timed out'));
       });
       
-      // Open and send request
       xhr.open('POST', apiUrl, true);
       xhr.send(formData);
       
-      // Setup abort listener
       signal.addEventListener('abort', () => {
         xhr.abort();
       });
       
-      // Wait for upload to complete
       const responseData = await uploadPromise;
       
       if (responseData.success) {
@@ -343,7 +336,6 @@ const FileUploader = ({
     showErrorMessage('Upload cancelled');
   };
 
-  // Render file icon based on file type
   const renderFileIcon = () => {
     if (!selectedFile) return null;
     
@@ -356,19 +348,18 @@ const FileUploader = ({
         />
       );
     } else {
-      // PDF or other document
       const extension = selectedFile.name.split('.').pop().toLowerCase();
       
       if (extension === 'pdf') {
         return (
           <View style={styles.fileIconContainer}>
-            <FontAwesome5 name="file-pdf" size={80} color={theme.error} />
+            <FontAwesome5 name="file-pdf" size={80} color={COLORS.error} />
           </View>
         );
       } else {
         return (
           <View style={styles.fileIconContainer}>
-            <FontAwesome5 name="file-alt" size={80} color={theme.primary} />
+            <FontAwesome5 name="file-alt" size={80} color={COLORS.primary} />
           </View>
         );
       }
@@ -379,16 +370,16 @@ const FileUploader = ({
     <View style={[styles.container, style]}>
       {/* Main upload button */}
       <TouchableOpacity 
-        style={[styles.button, { backgroundColor: theme.primary }]}
+        style={[styles.button, { backgroundColor: COLORS.primary }]}
         onPress={() => setShowOptions(true)}
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#FFF" size="small" />
+          <ActivityIndicator color={COLORS.accent} size="small" />
         ) : (
           <>
             <Text style={styles.buttonText}>{buttonTitle}</Text>
-            <Ionicons name="cloud-upload-outline" size={22} color="white" style={styles.buttonIcon} />
+            <Ionicons name="cloud-upload-outline" size={22} color={COLORS.accent} style={styles.buttonIcon} />
           </>
         )}
       </TouchableOpacity>
@@ -402,15 +393,15 @@ const FileUploader = ({
                 styles.progressBar, 
                 { 
                   width: `${progress * 100}%`,
-                  backgroundColor: theme.primary 
+                  backgroundColor: COLORS.success
                 }
               ]} 
             />
           </View>
           <View style={styles.progressDetails}>
-            <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
+            <Text style={styles.progressText}>{Math.round(progress * 100)}% COMPLETE</Text>
             <TouchableOpacity onPress={cancelUpload}>
-              <Text style={[styles.cancelText, { color: theme.error }]}>Cancel</Text>
+              <Text style={[styles.cancelText, { color: COLORS.error }]}>CANCEL</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -422,17 +413,17 @@ const FileUploader = ({
           styles.statusContainer, 
           { 
             backgroundColor: uploadStatus === 'success' 
-              ? `${theme.success}15` 
-              : `${theme.error}15`,
+              ? `${COLORS.success}15` 
+              : `${COLORS.error}15`,
             borderColor: uploadStatus === 'success' 
-              ? theme.success 
-              : theme.error,
+              ? COLORS.success 
+              : COLORS.error,
           }
         ]}>
           <Ionicons 
             name={uploadStatus === 'success' ? 'checkmark-circle' : 'alert-circle'} 
             size={22} 
-            color={uploadStatus === 'success' ? theme.success : theme.error} 
+            color={uploadStatus === 'success' ? COLORS.success : COLORS.error} 
           />
           <Text style={styles.statusText}>{statusMessage}</Text>
         </View>
@@ -452,46 +443,46 @@ const FileUploader = ({
         >
           <View style={styles.optionsContainer}>
             <View style={styles.optionsHandle} />
-            <Text style={styles.optionsTitle}>Upload File</Text>
+            <Text style={styles.optionsTitle}>UPLOAD FILE</Text>
             
             <TouchableOpacity style={styles.optionButton} onPress={pickDocument}>
-              <View style={[styles.optionIconBg, { backgroundColor: `${theme.primary}15` }]}>
-                <Ionicons name="document-text" size={24} color={theme.primary} />
+              <View style={[styles.optionIconBg, { backgroundColor: COLORS.primary + '20' }]}>
+                <Ionicons name="document-text" size={24} color={COLORS.primary} />
               </View>
               <View style={styles.optionTextContainer}>
-                <Text style={styles.optionText}>Document</Text>
+                <Text style={styles.optionText}>DOCUMENT</Text>
                 <Text style={styles.optionSubtext}>PDF, Images</Text>
               </View>
-              <Ionicons name="chevron-forward" size={22} color="#BBBBBB" />
+              <Ionicons name="chevron-forward" size={22} color={COLORS.border} />
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.optionButton} onPress={pickImage}>
-              <View style={[styles.optionIconBg, { backgroundColor: `${theme.success}15` }]}>
-                <Ionicons name="images" size={24} color={theme.success} />
+              <View style={[styles.optionIconBg, { backgroundColor: COLORS.success + '20' }]}>
+                <Ionicons name="images" size={24} color={COLORS.success} />
               </View>
               <View style={styles.optionTextContainer}>
-                <Text style={styles.optionText}>Gallery</Text>
+                <Text style={styles.optionText}>GALLERY</Text>
                 <Text style={styles.optionSubtext}>Choose from your photos</Text>
               </View>
-              <Ionicons name="chevron-forward" size={22} color="#BBBBBB" />
+              <Ionicons name="chevron-forward" size={22} color={COLORS.border} />
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.optionButton} onPress={takePicture}>
-              <View style={[styles.optionIconBg, { backgroundColor: `${theme.warning}15` }]}>
-                <Ionicons name="camera" size={24} color={theme.warning} />
+              <View style={[styles.optionIconBg, { backgroundColor: COLORS.warning + '20' }]}>
+                <Ionicons name="camera" size={24} color={COLORS.warning} />
               </View>
               <View style={styles.optionTextContainer}>
-                <Text style={styles.optionText}>Camera</Text>
+                <Text style={styles.optionText}>CAMERA</Text>
                 <Text style={styles.optionSubtext}>Take a new photo</Text>
               </View>
-              <Ionicons name="chevron-forward" size={22} color="#BBBBBB" />
+              <Ionicons name="chevron-forward" size={22} color={COLORS.border} />
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.cancelButton} 
               onPress={() => setShowOptions(false)}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>CANCEL</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -506,9 +497,9 @@ const FileUploader = ({
       >
         <View style={styles.previewContainer}>
           <View style={styles.previewHeader}>
-            <Text style={styles.previewTitle}>File Preview</Text>
+            <Text style={styles.previewTitle}>FILE PREVIEW</Text>
             <TouchableOpacity onPress={() => setShowPreview(false)}>
-              <Ionicons name="close" size={24} color={theme.text} />
+              <Ionicons name="close" size={24} color={COLORS.primary} />
             </TouchableOpacity>
           </View>
           
@@ -527,20 +518,20 @@ const FileUploader = ({
           
           <View style={styles.previewActions}>
             <TouchableOpacity 
-              style={[styles.previewButton, { backgroundColor: theme.error }]} 
+              style={[styles.previewButton, { backgroundColor: COLORS.error }]} 
               onPress={() => {
                 setShowPreview(false);
                 setSelectedFile(null);
               }}
             >
-              <Text style={styles.previewButtonText}>Cancel</Text>
+              <Text style={styles.previewButtonText}>CANCEL</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.previewButton, { backgroundColor: theme.primary }]} 
+              style={[styles.previewButton, { backgroundColor: COLORS.primary }]} 
               onPress={handleUpload}
             >
-              <Text style={styles.previewButtonText}>Upload</Text>
+              <Text style={styles.previewButtonText}>UPLOAD</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -560,16 +551,19 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 8,
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 1.5,
+    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: COLORS.accent + '40',
   },
   buttonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
+    color: COLORS.accent,
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 1,
   },
   buttonIcon: {
     marginLeft: 8,
@@ -581,9 +575,11 @@ const styles = StyleSheet.create({
   },
   progressBarContainer: {
     height: 8,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: COLORS.lightGray,
     borderRadius: 4,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border + '40',
   },
   progressBar: {
     height: '100%',
@@ -596,12 +592,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   progressText: {
-    fontSize: 12,
-    color: '#666666',
+    fontSize: 11,
+    color: COLORS.gray,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   cancelText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   // Status message
   statusContainer: {
@@ -616,17 +615,18 @@ const styles = StyleSheet.create({
   statusText: {
     flex: 1,
     marginLeft: 10,
-    fontSize: 14,
-    color: '#333333',
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(44, 62, 35, 0.85)',
     justifyContent: 'flex-end',
   },
   optionsContainer: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   optionsHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: COLORS.lightGray,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 15,
@@ -645,52 +645,60 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
-    color: '#333',
+    color: COLORS.primary,
+    letterSpacing: 1.5,
   },
   optionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: COLORS.lightGray + '60',
   },
   optionIconBg: {
     width: 48,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 15,
+    borderWidth: 1,
+    borderColor: COLORS.border + '30',
   },
   optionTextContainer: {
     flex: 1,
   },
   optionText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: 15,
+    color: COLORS.primary,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   optionSubtext: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: 12,
+    color: COLORS.gray,
     marginTop: 2,
+    fontWeight: '500',
   },
   cancelButton: {
     marginTop: 20,
     padding: 16,
     borderRadius: 8,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.cardBg,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border + '40',
   },
   cancelButtonText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 15,
+    color: COLORS.primary,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   // Preview modal
   previewContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.white,
   },
   previewHeader: {
     flexDirection: 'row',
@@ -699,13 +707,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.accent + '40',
+    backgroundColor: COLORS.cardBg,
   },
   previewTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.primary,
+    letterSpacing: 1.5,
   },
   previewContent: {
     flex: 1,
@@ -715,38 +725,48 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 300,
     borderRadius: 8,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.cardBg,
+    borderWidth: 1,
+    borderColor: COLORS.border + '40',
   },
   fileIconContainer: {
     width: '100%',
     height: 200,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F9F9F9',
+    backgroundColor: COLORS.cardBg,
     borderRadius: 8,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border + '40',
   },
   fileInfoContainer: {
     marginTop: 20,
     padding: 16,
-    backgroundColor: '#F9F9F9',
+    backgroundColor: COLORS.cardBg,
     borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.accent,
+    borderWidth: 1,
+    borderColor: COLORS.border + '30',
   },
   fileName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: COLORS.primary,
     marginBottom: 8,
   },
   fileInfo: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
+    color: COLORS.gray,
+    fontWeight: '600',
   },
   previewActions: {
     flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
+    borderTopWidth: 2,
+    borderTopColor: COLORS.lightGray + '60',
     padding: 16,
+    backgroundColor: COLORS.cardBg,
   },
   previewButton: {
     flex: 1,
@@ -755,12 +775,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 5,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   previewButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
+    color: COLORS.accent,
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 1,
   },
 });
-
-export default FileUploader;

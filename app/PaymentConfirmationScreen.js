@@ -173,80 +173,88 @@ export default function PaymentConfirmationScreen() {
     );
   };
   
-  const processPayment = async () => {
-    let user_id = await AsyncStorage.getItem('user_id');
-    setIsSubmitting(true);
-    
-    try {
-      const formattedDate = formData.paymentDate.toISOString().split('T')[0];
-      const paidAmount = parseFloat(formData.paidAmount) || 0;
-      
-      const paymentData = {
-        student_id: studentId,
-        months: selectedMonths,
-        discount: formData.discount,
-        misc_fee: formData.miscFee,
-        payment_mode: formData.paymentMode,
-        payment_date: formattedDate,
-        remarks: formData.remarks,
-        total: netAmount.toString(),
-        paid_amount: paidAmount.toString(),
-        created_by: user_id || '1'
-      };
-      
-      console.log("Sending payment data:", paymentData);
-      
-      const response = await axios.post(
-        'https://abma.org.in/binex/api.php?task=pay_fee',
-        paymentData
-      );
-      
-      setIsSubmitting(false);
-      
-      if (response.data && response.data.status === "success") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        
-        Alert.alert(
-          "Payment Successful",
-          `Receipt Number: ${response.data.id || 'Generated'}\nAmount Paid: ₹${paidAmount.toLocaleString()}`,
-          [
-            { 
-              text: "View Receipt", 
-              onPress: () => {
-                router.push({
-                  pathname: '/ReceiptScreen',
-                  params: {
-                    receipt_no: response.data.id,
-                    student_id: studentId,
-                    student_name: studentName
-                  }
-                });
-              } 
-            },
-            { 
-              text: "Done", 
-              onPress: () => {
-                router.push('/dashboard');
-              } 
-            }
-          ]
-        );
-      } else {
-        throw new Error(response.data?.message || "Payment failed. Please try again.");
-      }
-    } catch (error) {
-      setIsSubmitting(false);
-      console.error("Payment error:", error);
-      
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(
-        "Payment Failed",
-        error.message || "An error occurred while processing your payment. Please try again.",
-        [{ text: "OK" }]
-      );
-    }
-  };
+ 
   
+const processPayment = async () => {
+  let user_id = await AsyncStorage.getItem("user_id");
+  setIsSubmitting(true);
+
+  try {
+    const formattedDate = formData.paymentDate.toISOString().split("T")[0];
+    const paidAmount = parseFloat(formData.paidAmount) || 0;
+
+    const formDataToSend = new FormData();
+
+    formDataToSend.append("student_id", studentId);
+    formDataToSend.append("discount", formData.discount);
+    formDataToSend.append("misc_fee", formData.miscFee);
+    formDataToSend.append("payment_mode", formData.paymentMode);
+    formDataToSend.append("payment_date", formattedDate);
+    formDataToSend.append("remarks", formData.remarks);
+    formDataToSend.append("total", netAmount.toString());
+    formDataToSend.append("paid_amount", paidAmount.toString());
+    formDataToSend.append("created_by", user_id || "1");
+
+    // months[]
+    selectedMonths.forEach((m) => {
+      formDataToSend.append("months[]", m);
+    });
+
+    // fee_list[][]
+    selectedMonths.forEach((month, index) => {
+      const monthTotal =
+        typeof totalAmount === "number"
+          ? totalAmount
+          : parseFloat(totalAmount);
+
+      formDataToSend.append(`fee_list[${index}][month]`, month);
+      formDataToSend.append(`fee_list[${index}][fee_type]`, "tuition_fee");
+      formDataToSend.append(`fee_list[${index}][amount]`, monthTotal.toString());
+    });
+
+    const response = await axios.post(
+      "https://abma.org.in/binex/api.php?task=pay_fee",
+      formDataToSend,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    setIsSubmitting(false);
+
+    if (response.data.status === "success") {
+      Alert.alert(
+        "Payment Successful",
+        `Receipt Number: ${response.data.id}\nAmount Paid: ₹${paidAmount.toLocaleString()}`,
+        [
+          {
+            text: "View Receipt",
+            onPress: () =>
+              router.push({
+                pathname: "/ReceiptScreen",
+                params: { receipt_no: response.data.id },
+              }),
+          },
+          { text: "Done", onPress: () => router.push("/dashboard") },
+        ]
+      );
+    } else {
+      throw new Error(response.data.msg || "Payment failed. Please try again.");
+    }
+  } catch (error) {
+    setIsSubmitting(false);
+
+    Alert.alert(
+      "Payment Failed",
+      error.message || "An error occurred while processing your payment.",
+      [{ text: "OK" }]
+    );
+  }
+};
+
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.dark} />
